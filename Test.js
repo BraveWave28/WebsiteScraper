@@ -1,5 +1,6 @@
 import express from 'express';
 import https from 'https';
+import { load } from 'cheerio';
 
 const app = express();
 const PORT = 3000;
@@ -27,18 +28,23 @@ app.get('/getTimeStories', (req, res) => {
 
 function extractStories(html) {
     const stories = [];
-    const regex = /<a[^>]*href="([^"]+)">\s*<span>(.*?)<\/span>\s*<\/a>/gi;
+    const $ = load(html);
 
-    let match;
+    // Adjust the selector to match the structure of time.com
+    // For example, let's assume stories are in <a> tags with a specific class
+    $('a').each((i, elem) => {
+        if (stories.length >= 6) return false; // break after 6 stories
 
-    while ((match = regex.exec(html)) !== null && stories.length < 6) {
-        const link = match[1].startsWith('http') ? match[1] : 'https://time.com' + match[1];
-        const title = match[2].trim();
+        const title = $(elem).find('span').text().trim();
+        const href = $(elem).attr('href');
 
-        if (!stories.some(story => story.link === link)) {
-            stories.push({ title, link });
+        if (title && href) {
+            const link = href.startsWith('http') ? href : 'https://time.com' + href;
+            if (!stories.some(story => story.link === link)) {
+                stories.push({ title, link });
+            }
         }
-    }
+    });
 
     return stories;
 }
